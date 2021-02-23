@@ -27,7 +27,6 @@ const getRespectiveListsForUsers = async (user, action) => {
         }
         pageNum++;
       } catch (err) {
-        console.log(err);
         return {
           listOfUsers: [],
           success: false,

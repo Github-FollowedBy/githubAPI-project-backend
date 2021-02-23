@@ -158,7 +158,6 @@ routes.get("/getData", async (req, res) => {
       return res.status(400).send({ message: "Please provide the usernames" });
     }
     //Checking if User Name is present on github or not.
-    console.log("zero approach")
     const validCheckResponse = await checkIfUsersAreValid(
       primaryUser,
       secondaryUser
@@ -181,7 +180,7 @@ routes.get("/getData", async (req, res) => {
         6000, anyways its impossible get all the followers due to API restriction.
         else, Approach 2 will be used.
       */
-     console.log("first approach")
+
       //Getting the users that Primary User is following.
       const followingUserResponse = await getFollowingForPrimaryUser(
         primaryUser
@@ -196,7 +195,6 @@ routes.get("/getData", async (req, res) => {
           secondaryUser
         ).then((response) => {
           //As async method always returns a promise, hence using, .then() to handle it.
-          console.log(response)
           if (response.success) {
             res.send({
               success: true,
@@ -221,11 +219,10 @@ routes.get("/getData", async (req, res) => {
         return;
       }
     } else {
-      /*Approach 2: Pre-Requisite- Following of Primary User + Followers of Secondary User <= ~5800.
+      /*Approach 2: Pre-Requisite- Following of Primary User + Followers of Secondary User <= ~5800 due to API limit.
         Logic- Get all the following of Primary User and followers of Secondary User,
         simply find the intersection set and return it, this will comparitively consume less API calls.
       */
-     console.log("second approach")
       const listOfFollowing = await utilFunctions.getRespectiveListsForUsers(
         primaryUser,
         "following"
@@ -244,7 +241,6 @@ routes.get("/getData", async (req, res) => {
               listOfFollowers.listOfUsers,
               listOfFollowing.listOfUsers
             );
-      console.log(intersectionResponse);
       if (intersectionResponse.success) {
         res.send({
           success: true,
