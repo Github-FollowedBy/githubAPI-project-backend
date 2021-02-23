@@ -11,6 +11,7 @@ const routes = express.Router();
 require("dotenv").config();
 routes.use(express.json());
 const axios = require("axios");
+const utilFunctions = require("./utilFunctions");
 
 const isNullOrUndefined = (val) => {
   return val === null || val === undefined || val === "";
@@ -28,9 +29,6 @@ const getFollowingForPrimaryUser = async (primaryUser) => {
         const list = await axios.get(
           `https://api.github.com/users/${primaryUser}/following?per_page=${pageSize}&page=${pageNum}`,
           {
-            /*Without Auth Token only 5 API requests were allowed, hence used the Auth token
-                to improve on the number of API calls that can be made.
-              */
             headers: {
               Authorization: `${process.env.AUTHTOKEN}`,
             },
@@ -77,11 +75,16 @@ const getMatchingUsers = async (listOfFollowings, secondaryUser) => {
             */
         intersectingUsersPromises.push(
           axios.get(
-            `https://api.github.com/users/${user.login}/following/${secondaryUser}`
+            `https://api.github.com/users/${user.login}/following/${secondaryUser}`,
+            {
+              headers: {
+                Authorization: `${process.env.AUTHTOKEN}`,
+              },
+            }
           )
         );
-        //List to store the userName
-        userNameList.push(user.login);
+        //List to store the userName and avatar url.
+        userNameList.push({ login: user.login, profileUrl: user.avatar_url });
       } catch (err) {
         return {
           intersectingUsers: [],
@@ -94,7 +97,7 @@ const getMatchingUsers = async (listOfFollowings, secondaryUser) => {
     const promistListResolved = await Promise.allSettled(
       intersectingUsersPromises
     );
-    /*As we are pushing the promises in the above forEach loop on line 70,
+    /*As we are pushing the promises in the above forEach loop,
       so this list of promises will maintain the sequence, as a result using
       index that is starting from 0 for userName retrieval.
     */
@@ -116,49 +119,149 @@ const getMatchingUsers = async (listOfFollowings, secondaryUser) => {
   }
 };
 
+const checkIfUsersAreValid = async (primaryUser, secondaryUser) => {
+  try {
+    const primaryUserResponse = await axios.get(
+      `https://api.github.com/users/${primaryUser}`,
+      {
+        headers: {
+          Authorization: `${process.env.AUTHTOKEN}`,
+        },
+      }
+    );
+    const secondaryUserResponse = await axios.get(
+      `https://api.github.com/users/${secondaryUser}`,
+      {
+        headers: {
+          Authorization: `${process.env.AUTHTOKEN}`,
+        },
+      }
+    );
+    //If we are over here, that means both the users are valid
+    return { valid: true, primaryUserResponse, secondaryUserResponse };
+  } catch (err) {
+    //If we are over here, that means some of the user is invalid or API limit exceeded
+    console.log(err);
+    return { valid: false };
+  }
+};
+
 routes.get("/getData", async (req, res) => {
   try {
+    /*Due to the restrictions of GITHUB-API that gives only 60 API calls per hour
+      the sum of the followings of a primary user and followers of the secondary user
+      should be less than ~5800, as 2 API calls are consumed of validation check.
+      At max we can get 100 users from one API call.
+    */
     const { primaryUser, secondaryUser } = req.query;
-    if (isNullOrUndefined(primaryUser) || isNullOrUndefined(primaryUser)) {
+    if (isNullOrUndefined(primaryUser) || isNullOrUndefined(secondaryUser)) {
       return res.status(400).send({ message: "Please provide the usernames" });
     }
-    //Getting the users that Primary User is following.
-    const followingUserResponse = await getFollowingForPrimaryUser(primaryUser);
+    //Checking if User Name is present on github or not.
+    console.log("zero approach")
+    const validCheckResponse = await checkIfUsersAreValid(
+      primaryUser,
+      secondaryUser
+    );
+    if (!validCheckResponse.valid) {
+      return res.status(404).send({
+        message: "One of the UserName not Valid or API limit exceeded!",
+        success: false,
+      });
+    }
+    if (
+      validCheckResponse.primaryUserResponse.data.following <= 58 &&
+      validCheckResponse.secondaryUserResponse.data.followers >= 6000
+    ) {
+      /*If this is the case, then no point getting all the followers data also, 
+        as we can simply get all the followings of primary user and make 58 or less API requests,
+        As a result Approach 1 will be executed- Getting Followings of Primary User,
+        for every user that is followed by primary user, we will check that users following and 
+        if it contains the secondary user, add it to the reponse. If followers are more than
+        6000, anyways its impossible get all the followers due to API restriction.
+        else, Approach 2 will be used.
+      */
+     console.log("first approach")
+      //Getting the users that Primary User is following.
+      const followingUserResponse = await getFollowingForPrimaryUser(
+        primaryUser
+      );
 
-    if (followingUserResponse.success) {
-      /*Method to get the intersection of Users that Primary user follows
+      if (followingUserResponse.success) {
+        /*Method to get the intersection of Users that Primary user follows
         and followers of secondary user.
       */
-      getMatchingUsers(
-        followingUserResponse.listOfFollowings,
-        secondaryUser
-      ).then((response) => {
-        //As async method always returns a promise, hence using, .then() to handle it.
-        console.log(response);
-        if (response.success) {
-          res.send({
-            success: true,
-            intersectionListOfUsers: response.intersectingUsers,
-          });
-          return;
-        } else {
-          res.send({
-            success: false,
-            message: "Error in the API or API rate limit exceeded ",
-            intersectionListOfUsers: [],
-          });
-          return;
-        }
-      });
+        getMatchingUsers(
+          followingUserResponse.listOfFollowings,
+          secondaryUser
+        ).then((response) => {
+          //As async method always returns a promise, hence using, .then() to handle it.
+          console.log(response)
+          if (response.success) {
+            res.send({
+              success: true,
+              intersectionListOfUsers: response.intersectingUsers,
+            });
+            return;
+          } else {
+            res.send({
+              success: false,
+              message: "Error in the API or API rate limit exceeded ",
+              intersectionListOfUsers: [],
+            });
+            return;
+          }
+        });
+      } else {
+        res.send({
+          success: false,
+          message: "Error in the API or API rate limit exceeded ",
+          intersectionListOfUsers: [],
+        });
+        return;
+      }
     } else {
-      res.send({
-        success: false,
-        message: "Error in the API or API rate limit exceeded ",
-        intersectionListOfUsers: [],
-      });
-      return;
+      /*Approach 2: Pre-Requisite- Following of Primary User + Followers of Secondary User <= ~5800.
+        Logic- Get all the following of Primary User and followers of Secondary User,
+        simply find the intersection set and return it, this will comparitively consume less API calls.
+      */
+     console.log("second approach")
+      const listOfFollowing = await utilFunctions.getRespectiveListsForUsers(
+        primaryUser,
+        "following"
+      );
+      const listOfFollowers = await utilFunctions.getRespectiveListsForUsers(
+        secondaryUser,
+        "followers"
+      );
+      const intersectionResponse =
+        listOfFollowing.listOfUsers.length <= listOfFollowers.listOfUsers.length
+          ? utilFunctions.getIntersection(
+              listOfFollowing.listOfUsers,
+              listOfFollowers.listOfUsers
+            )
+          : utilFunctions.getIntersection(
+              listOfFollowers.listOfUsers,
+              listOfFollowing.listOfUsers
+            );
+      console.log(intersectionResponse);
+      if (intersectionResponse.success) {
+        res.send({
+          success: true,
+          intersectionListOfUsers: intersectionResponse.intersectingList,
+        });
+        return;
+      } else {
+        res.status(500).send({
+          message: "Internal Server Error",
+          success: false,
+          intersectionListOfUsers: [],
+        });
+        return;
+      }
     }
   } catch (err) {
+    console.log(err);
     res.status(500).send({
       message: "Internal Server Error",
       success: false,
