@@ -20,7 +20,7 @@ describe("/GET Desired Users", () => {
         });
     });
   });
-  context("Scenario 1: Testing Approach 2 in the route", function () {
+  context("Scenario 2: Testing Approach 2 in the route", function () {
     it("should GET all the intersecting users with followers > 6000 & following < 60 with minimum API calls", (done) => {
       chai
         .request(app)
@@ -38,6 +38,7 @@ describe("/GET Desired Users", () => {
         .request(app)
         .get("/getData?primaryUser=pawarss112&secondaryUser=pawarss11243")
         .end((err, res) => {
+          console.log(res);
           res.should.have.status(400);
           done();
         });

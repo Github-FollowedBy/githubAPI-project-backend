@@ -8,9 +8,10 @@ const fetchAPIData = require("./Routes/fetchAPIData");
 app.use(
   cors({
     credentials: true,
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL,
   })
 );
+
 app.set("trust proxy", 1);
 
 app.use("/", fetchAPIData);
