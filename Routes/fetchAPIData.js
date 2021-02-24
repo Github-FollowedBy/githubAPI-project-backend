@@ -4,7 +4,7 @@ that Primary user follows and followers of secondary user
 Developer Name- Sanidhya Pawar
 Creation Date- 23/02/2021
 Last Updated on- 24/ 02/ 2021
-Test Method- 
+Test Method- ../test/test.js
 */
 const express = require("express");
 const routes = express.Router();
@@ -163,7 +163,7 @@ routes.get("/getData", async (req, res) => {
       secondaryUser
     );
     if (!validCheckResponse.valid) {
-      return res.status(404).send({
+      return res.status(400).send({
         message: "One of the UserName not Valid or API limit exceeded!",
         success: false,
       });
@@ -177,7 +177,7 @@ routes.get("/getData", async (req, res) => {
         As a result Approach 1 will be executed- Getting Followings of Primary User,
         for every user that is followed by primary user, we will check that users following and 
         if it contains the secondary user, add it to the reponse. If followers are more than
-        6000, anyways its impossible get all the followers due to API restriction.
+        6000 and following > ~60, anyways its impossible get all the followers due to API restriction.
         else, Approach 2 will be used.
       */
 
