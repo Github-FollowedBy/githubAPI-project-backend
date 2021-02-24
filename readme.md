@@ -10,6 +10,7 @@ following the secondary user.
 
 ##### This will accept 2 query params, primaryUser and secondaryUser. This will return the status of the execution, list of desired users and err msg, if any.
 
+### Tech Stack Used- Node.js
 ### API used- Github
 ### For more info- https://docs.github.com/en/rest
 
