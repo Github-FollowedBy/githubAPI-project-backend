@@ -5,6 +5,7 @@ Developer Name- Sanidhya Pawar
 Creation Date- 23/02/2021
 Last Updated on- 24/ 02/ 2021
 Test Method- ../test/test.js
+-------------------------------------------------------------------------------------
 */
 const express = require("express");
 const routes = express.Router();
@@ -129,6 +130,16 @@ const checkIfUsersAreValid = async (primaryUser, secondaryUser) => {
         },
       }
     );
+    if (primaryUser === secondaryUser) {
+      /*If primary and secondary users are same, then we can avoid one API call.
+        In this case, even 1 API call is important, as it can return upto 100 users in one call.
+      */
+      return {
+        valid: true,
+        primaryUserResponse,
+        secondaryUserResponse: primaryUserResponse,
+      };
+    }
     const secondaryUserResponse = await axios.get(
       `https://api.github.com/users/${secondaryUser}`,
       {
@@ -141,7 +152,6 @@ const checkIfUsersAreValid = async (primaryUser, secondaryUser) => {
     return { valid: true, primaryUserResponse, secondaryUserResponse };
   } catch (err) {
     //If we are over here, that means some of the user is invalid or API limit exceeded
-    console.log(err);
     return { valid: false };
   }
 };
@@ -176,9 +186,10 @@ routes.get("/getData", async (req, res) => {
         as we can simply get all the followings of primary user and make 58 or less API requests,
         As a result Approach 1 will be executed- Getting Followings of Primary User,
         for every user that is followed by primary user, we will check that users following and 
-        if it contains the secondary user, add it to the reponse. If followers are more than
-        6000 and following > ~60, anyways its impossible get all the followers due to API restriction.
+        if it contains the secondary user, add it to the reponse. 
         else, Approach 2 will be used.
+        (If followers + following is are more than
+         6000, anyways its impossible get all the followers due to API restriction.)
       */
 
       //Getting the users that Primary User is following.
@@ -219,7 +230,7 @@ routes.get("/getData", async (req, res) => {
         return;
       }
     } else {
-      /*Approach 2: Pre-Requisite- Following of Primary User + Followers of Secondary User <= ~5800 due to API limit.
+      /*Approach 2: Pre-Requisite- Following of Primary User + Followers of Secondary User <= ~5988 due to API limit.
         Logic- Get all the following of Primary User and followers of Secondary User,
         simply find the intersection set and return it, this will comparitively consume less API calls.
       */
@@ -231,6 +242,10 @@ routes.get("/getData", async (req, res) => {
         secondaryUser,
         "followers"
       );
+      /*As we will be constructing a Map in the Utils method using the first parameter,
+       so to improve on the space complexity, 
+       sending the list with smaller size in first parameter.
+      */
       const intersectionResponse =
         listOfFollowing.listOfUsers.length <= listOfFollowers.listOfUsers.length
           ? utilFunctions.getIntersection(
@@ -257,7 +272,6 @@ routes.get("/getData", async (req, res) => {
       }
     }
   } catch (err) {
-    console.log(err);
     res.status(500).send({
       message: "Internal Server Error",
       success: false,

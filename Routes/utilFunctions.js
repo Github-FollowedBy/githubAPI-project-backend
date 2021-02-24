@@ -63,7 +63,6 @@ const getIntersection = (iterationList, targetList) => {
     });
     return { intersectingList, success: true };
   } catch (err) {
-    console.log(err);
     return {
       intersectingList: [],
       success: false,
