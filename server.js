@@ -6,6 +6,9 @@ require("dotenv").config();
 const fetchAPIData = require("./Routes/fetchAPIData");
 
 app.use(
+  /*Cross origin- this will basically take in the request only from the mentioned url, 
+  else will reject it
+  */
   cors({
     credentials: true,
     origin: process.env.FRONTEND_URL,
